@@ -1,0 +1,137 @@
+import numpy as np
+from scipy.stats import poisson
+from math import factorial
+from scipy.stats import chisquare
+import matplotlib.pyplot as plt
+# Parameters
+A = 8  # offered traffic in Erlang
+m = 10  # number of lines
+np.random.seed(1234)
+
+# Compute the normalizing constant c
+def compute_normalizing_constant(A, m):
+    normalization_sum = sum((A ** i) / factorial(i) for i in range(m + 1))
+    return 1 / normalization_sum
+
+c = compute_normalizing_constant(A, m)
+
+def truncated_poisson_pmf(i, A, m, c):
+    if i < 0 or i > m:
+        return 0
+    return c * (A ** i) / factorial(i)
+
+def metropolis_hastings_truncated_poisson(A, m, num_samples):
+    samples = []
+    current_state = np.random.randint(0, m + 1)
+    
+    for _ in range(num_samples):
+        proposed_state = current_state + np.random.choice([-1, 1])
+        
+        if proposed_state < 0 or proposed_state > m:
+            samples.append(current_state)
+            continue
+        
+        acceptance_ratio = (truncated_poisson_pmf(proposed_state, A, m, c) /
+                            truncated_poisson_pmf(current_state, A, m, c))
+        
+        if np.random.rand() < acceptance_ratio:
+            current_state = proposed_state
+        
+        samples.append(current_state)
+    
+    return samples
+
+# Generate samples
+num_samples = 10000
+samples = metropolis_hastings_truncated_poisson(A, m, num_samples)
+print(samples[:10])  # Display the first 10 samples
+
+# Theoretical probabilities
+theoretical_probs = [truncated_poisson_pmf(i, A, m, c) for i in range(m + 1)]
+
+# Observed frequencies from the samples
+observed_freq, _ = np.histogram(samples, bins=np.arange(m + 2) - 0.5, density=True)
+
+# Chi-square test
+chi2_stat, p_value = chisquare(observed_freq, f_exp=theoretical_probs)
+print(chi2_stat, p_value)
+
+
+# Parameters
+A1 = 4
+A2 = 4
+m = 10
+
+# Compute the normalizing constant c
+def compute_normalizing_constant_joint(A1, A2, m):
+    normalization_sum = 0
+    for i in range(m + 1):
+        for j in range(m + 1 - i):
+            normalization_sum += (A1 ** i) / factorial(i) * (A2 ** j) / factorial(j)
+    return 1 / normalization_sum
+
+c_joint = compute_normalizing_constant_joint(A1, A2, m)
+
+def joint_pmf(i, j, A1, A2, m, c):
+    if i < 0 or j < 0 or i + j > m:
+        return 0
+    return c * (A1 ** i) / factorial(i) * (A2 ** j) / factorial(j)
+
+def metropolis_hastings_joint(A1, A2, m, num_samples):
+    samples = []
+    current_state = (np.random.randint(0, m + 1), np.random.randint(0, m + 1 - np.random.randint(0, m + 1)))
+    
+    for _ in range(num_samples):
+        proposed_state = (current_state[0] + np.random.choice([-1, 0, 1]),
+                          current_state[1] + np.random.choice([-1, 0, 1]))
+        
+        if proposed_state[0] < 0 or proposed_state[1] < 0 or proposed_state[0] + proposed_state[1] > m:
+            samples.append(current_state)
+            continue
+        
+        acceptance_ratio = (joint_pmf(proposed_state[0], proposed_state[1], A1, A2, m, c_joint) /
+                            joint_pmf(current_state[0], current_state[1], A1, A2, m, c_joint))
+        
+        if np.random.rand() < acceptance_ratio:
+            current_state = proposed_state
+        
+        samples.append(current_state)
+    
+    return samples
+
+# Generate samples
+num_samples = 10000
+samples_joint = metropolis_hastings_joint(A1, A2, m, num_samples)
+print(samples_joint[:10])  # Display the first 10 samples
+
+def count_occurrences(samples):
+    counts = {}
+    for sample in samples:
+        if sample in counts:
+            counts[sample] += 1
+        else:
+            counts[sample] = 1
+    return counts
+
+# Count occurrences of each (i, j) pair in the samples
+sample_counts = count_occurrences(samples_joint)
+
+# Extract keys and corresponding frequencies
+sample_keys = sorted(sample_counts.keys())
+observed_freqs = [sample_counts[key] / num_samples for key in sample_keys]
+
+# Compute theoretical probabilities
+theoretical_probs = [joint_pmf(i, j, A1, A2, m, c_joint) for (i, j) in sample_keys]
+
+# Extract i and j values
+i_vals = [key[0] for key in sample_keys]
+j_vals = [key[1] for key in sample_keys]
+
+plt.figure(figsize=(12, 6))
+plt.scatter(i_vals, j_vals, s=1000 * np.array(observed_freqs), alpha=0.5, label='Observed')
+plt.scatter(i_vals, j_vals, s=1000 * np.array(theoretical_probs), alpha=0.5, marker='x', label='Theoretical')
+plt.xlabel('i')
+plt.ylabel('j')
+plt.legend()
+plt.title('Observed vs Theoretical Joint Distribution')
+plt.show()

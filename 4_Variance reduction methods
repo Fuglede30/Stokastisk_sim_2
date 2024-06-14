@@ -1,0 +1,113 @@
+import numpy as np
+import scipy.stats as stats
+
+np.random.seed(1234)
+#exercise 1
+def crude_monte_carlo(n_samples):
+    samples = np.random.uniform(0, 1, n_samples)
+    integral_estimate = np.mean(np.exp(samples))
+    std = np.std(np.exp(samples))/np.sqrt(n_samples)
+    confidence_interval = stats.t.interval(0.95, n_samples-1, loc=integral_estimate, scale=std)
+    return integral_estimate, confidence_interval
+
+n = 100
+estimate_1, confidence_interval_1 = crude_monte_carlo(n)
+
+print("Excercise 1")
+print("Point estimator:", estimate_1)
+print("Confidence interval:", confidence_interval_1)
+
+#exercise 2
+def antithetic_variables(n_samples):
+    samples = np.random.uniform(0, 1, n_samples)
+    antithetic_samples = 1 - samples
+    integral_estimate = np.mean((np.exp(samples) + np.exp(antithetic_samples)) / 2)
+    std = np.std((np.exp(samples) + np.exp(antithetic_samples)) / 2) / np.sqrt(n_samples)
+    confidence_interval = stats.t.interval(0.95, n_samples-1, loc=integral_estimate, scale=std)
+    return integral_estimate, confidence_interval
+
+estimate_2, confidence_interval_2 = antithetic_variables(n)
+
+print("Excercise 2")
+print("Point estimator:", estimate_2)
+print("Confidence interval:", confidence_interval_2)
+
+#excercise 3
+def control_variable(n_samples):
+    samples = np.random.uniform(0, 1, n_samples)
+    control_variate = np.exp(samples) - samples
+    integral_estimate = np.mean(np.exp(samples)) + np.cov(np.exp(samples), control_variate)[0, 1] / np.var(control_variate) * (np.mean(control_variate) - 0)
+    std = np.std(np.exp(samples) + np.cov(np.exp(samples), control_variate)[0, 1] / np.var(control_variate) * (control_variate - 0)) / np.sqrt(n_samples)
+    confidence_interval = stats.t.interval(0.95, n_samples-1, loc=integral_estimate, scale=std)
+    return integral_estimate, confidence_interval
+
+estimate_3, confidence_interval_3 = control_variable(n)
+
+print("Excercise 3")
+print("Point estimator:", estimate_3)
+print("Confidence interval:", confidence_interval_3)
+
+#excercise 4
+def stratified_sampling(n_samples):
+    strata = np.random.uniform(0, 1, n_samples)
+    strata_means = np.zeros(n_samples)
+    for i in range(n_samples):
+        stratum_samples = np.random.uniform(i/n_samples, (i+1)/n_samples, int(n_samples/10))
+        strata_means[i] = np.mean(np.exp(stratum_samples))
+    integral_estimate = np.mean(strata_means)
+    std = np.std(strata_means) / np.sqrt(n_samples)
+    confidence_interval = stats.t.interval(0.95, n_samples-1, loc=integral_estimate, scale=std)
+    return integral_estimate, confidence_interval
+
+estimate_4, confidence_interval_4 = stratified_sampling(n)
+
+print("Excercise 4")
+print("Point estimator:", estimate_4)
+print("Confidence interval:", confidence_interval_4)
+
+#exercise 5
+def control_variate_poisson(n_samples):
+    samples = np.random.uniform(0, 1, n_samples)
+    control_variate = np.exp(samples) - samples
+    poisson_samples = np.random.poisson(1, n_samples)
+    integral_estimate = np.mean(np.exp(samples)) + np.cov(np.exp(samples), control_variate)[0, 1] / np.var(control_variate) * (np.mean(control_variate) - np.mean(poisson_samples))
+    std = np.std(np.exp(samples) + np.cov(np.exp(samples), control_variate)[0, 1] / np.var(control_variate) * (control_variate - np.mean(poisson_samples))) / np.sqrt(n_samples)
+    confidence_interval = stats.t.interval(0.95, n_samples-1, loc=integral_estimate, scale=std)
+    return integral_estimate, confidence_interval
+
+estimate_5, confidence_interval_5 = control_variate_poisson(n)
+
+print("Excercise 5")
+print("Point estimator:", estimate_5)
+print("Confidence interval:", confidence_interval_5)
+
+#excercise 7
+def probability_estimate(a, n_samples):
+    # Crude Monte Carlo
+    samples = np.random.normal(0, 1, n_samples)
+    crude_estimate = np.mean(samples > a)
+
+    # Importance Sampling
+    importance_samples = np.random.normal(a, 1, n_samples)
+    importance_weights = stats.norm.pdf(importance_samples, a, 1) / stats.norm.pdf(importance_samples, 0, 1)
+    importance_estimate = np.mean((samples > a) * importance_weights)
+
+    return crude_estimate, importance_estimate
+
+# Example usage
+a = 2
+n_samples = 10000
+crude_estimate, importance_estimate = probability_estimate(a, n_samples)
+
+print("Excercise 7")
+print("Crude Monte Carlo Estimate:", crude_estimate)
+print("Importance Sampling Estimate:", importance_estimate)
+
+#excercise 8
+def g(x):
+    lam = 1
+    return lam * np.exp(-lam * x)
+
+
+
+
